@@ -1,6 +1,6 @@
 print("### RUNNING UPDATED app.py WITH KEYWORD OVERRIDE ###")
 
-from flask import Flask, render_template, request, session, redirect, url_for
+from flask import Flask, render_template, request, session, redirect, url_for, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import (
     LoginManager, UserMixin,
@@ -40,9 +40,9 @@ def load_user(user_id):
 # =======================
 API_URL = "https://router.huggingface.co/hf-inference/models/cardiffnlp/twitter-xlm-roberta-base-emotion"
 
-# HEADERS = {
-#     "Authorization": "token here"
-# }
+HEADERS = {
+    "Authorization": "your token"
+}
 EMOTION_KEYWORDS = {
     "Anger": ["angry", "rage", "pissed", "poda", "loosu", "idiot", "hate", "worst", "cheap", "bad", "terrible", "awful", "horrible", "stupid", "annoyed", "frustrated", "gussa", "angry", "furious", "mad", "irritated", "annoyed"],
     "Sadness": ["sad", "depressed", "lonely", "cry", "miss", "pain", "unhappy", "sorrow", "grief", "heartbroken", "disappointed"],
@@ -266,6 +266,42 @@ def delete_post(post_id):
     db.session.delete(post)
     db.session.commit()
     return redirect(url_for("index"))
+
+# =======================
+# POST EMOTION REPORT (Per Post Analysis)
+# =======================
+@app.route("/report/<int:post_id>")
+@login_required
+def post_report(post_id):
+    post = Post.query.get_or_404(post_id)
+    comments = Comment.query.filter_by(post_id=post_id).all()
+    
+    # Aggregate emotions
+    emotion_counts = {}
+    emotion_data = []
+    
+    for comment in comments:
+        emotion = comment.sentiment
+        emotion_counts[emotion] = emotion_counts.get(emotion, 0) + 1
+        emotion_data.append({
+            'text': comment.text,
+            'sentiment': emotion,
+            'confidence': comment.confidence,
+            'timestamp': comment.timestamp.strftime('%Y-%m-%d %H:%M:%S')
+        })
+    
+    # Calculate percentages
+    total_comments = len(comments)
+    emotion_percentages = {}
+    for emotion, count in emotion_counts.items():
+        emotion_percentages[emotion] = round((count / total_comments) * 100, 2) if total_comments > 0 else 0
+    
+    return render_template("report.html", 
+                           post=post, 
+                           comments=comments,
+                           emotion_counts=emotion_counts,
+                           emotion_percentages=emotion_percentages,
+                           total_comments=total_comments)
 
 # =======================
 # RUN APP
