@@ -1,0 +1,12 @@
+pandas
+numpy
+scikit-learn
+torch
+transformers
+tqdm
+flask
+flask-sqlalchemy
+flask-login
+werkzeug
+langdetect
+googletrans==4.0.0rc1

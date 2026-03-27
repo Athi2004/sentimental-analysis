@@ -1,0 +1,278 @@
+<!-- <!DOCTYPE html>
+<html>
+<head>
+    <title>Sentiment Analysis Dashboard</title>
+
+    <!Bootstrap -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+
+<div class="container-fluid p-4">
+
+    <h2 class="mb-4 text-center">📊 Sentiment Analysis Dashboard</h2>
+    <div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card p-3 text-center kpi-tile">
+            <h6>Total Predictions</h6>
+            <h3 class="counter" data-target="{{ counts.Positive + counts.Negative + counts.Neutral }}">
+                0
+            </h3>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card p-3 text-center kpi-tile">
+            <h6>Positive</h6>
+            <h3 class="counter text-success" data-target="{{ counts.Positive }}">0</h3>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card p-3 text-center kpi-tile">
+            <h6>Negative</h6>
+            <h3 class="counter text-danger" data-target="{{ counts.Negative }}">0</h3>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card p-3 text-center kpi-tile">
+            <h6>Neutral</h6>
+            <h3 class="counter text-warning" data-target="{{ counts.Neutral }}">0</h3>
+        </div>
+    </div>
+</div>
+
+    <div class="row">
+
+        <!-- Input Panel -->
+        <div class="col-md-4">
+            <div class="card p-3 shadow">
+                <h5>Enter Code-Mixed Text</h5>
+
+                <form method="POST">
+                    <textarea class="form-control mb-3"
+                              name="sentence"
+                              rows="4"
+                              placeholder="Enter text..."
+                              required>{{ text }}</textarea>
+
+                    <button class="btn btn-primary w-100">
+                        Predict Sentiment
+                    </button>
+                </form>
+
+                {% if sentiment %}
+                <div class="alert alert-info mt-3 text-center">
+                    <strong>{{ sentiment }}</strong><br>
+                    Confidence: {{ confidence }}%
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Confidence Chart -->
+        <div class="col-md-4">
+            <div class="card p-3 shadow">
+                <h5 class="text-center">Prediction Confidence</h5>
+                <canvas id="confidenceChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Sentiment Distribution -->
+        <div class="col-md-4">
+            <div class="card p-3 shadow">
+                <h5 class="text-center">Sentiment Distribution</h5>
+                <canvas id="sentimentChart"></canvas>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- History Table -->
+<div class="card p-4 mt-4">
+    <form method="POST" action="/clear" class="text-end mb-2">
+        <button type="submit" class="btn btn-outline-danger btn-sm">
+            Clear History
+        </button>
+    </form>
+    <h5 class="mb-4" style="color:#38bdf8;">Recent Predictions</h5>
+
+    <div class="prediction-list">
+
+        {% for item in history %}
+        <div class="prediction-row">
+
+            <!-- Text -->
+            <div class="prediction-text">
+                {{ item.text }}
+            </div>
+
+            <!-- Sentiment -->
+            <div class="prediction-sentiment">
+                <span class="sentiment-badge
+                    {% if item.sentiment == 'Positive' %} positive
+                    {% elif item.sentiment == 'Negative' %} negative
+                    {% else %} neutral {% endif %}">
+                    {{ item.sentiment }}
+                </span>
+            </div>
+
+            <!-- Confidence -->
+            <div class="prediction-confidence">
+                <div class="confidence-bar">
+                    
+                </div>
+                <span class="confidence-text">{{ item.confidence }}%</span>
+            </div>
+
+        </div>
+        {% endfor %}
+
+    </div>
+</div>
+
+
+</div>
+
+<script id="dashboard-data" type="application/json">
+    {{ dashboard_data | tojson }}
+</script>
+<script>
+    /* ===============================
+   Animated KPI Counters
+================================ */
+const counters = document.querySelectorAll(".counter");
+
+counters.forEach(counter => {
+    const target = +counter.getAttribute("data-target");
+    let count = 0;
+
+    const increment = Math.max(1, Math.ceil(target / 60));
+
+    const updateCount = () => {
+        count += increment;
+        if (count < target) {
+            counter.innerText = count;
+            requestAnimationFrame(updateCount);
+        } else {
+            counter.innerText = target;
+        }
+    };
+
+    updateCount();
+});
+
+document.addEventListener("DOMContentLoaded", function () {
+
+    /* ===============================
+       Read backend data safely
+    =============================== */
+    const rawData = document.getElementById("dashboard-data").textContent;
+    const data = JSON.parse(rawData);
+
+    /* ===============================
+       Confidence Bar Chart
+    =============================== */
+    if (data.sentiment && data.confidence > 0) {
+
+        const confidenceCanvas = document.getElementById("confidenceChart");
+
+        if (confidenceCanvas) {
+            new Chart(confidenceCanvas, {
+                type: "bar",
+                data: {
+                    labels: ["Confidence"],
+                    datasets: [{
+                        label: data.sentiment,
+                        data: [data.confidence],
+
+                        /* 🎨 Professional analytics color */
+                        backgroundColor: "rgba(56, 189, 248, 0.9)",
+                        borderRadius: 10
+
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            title: {
+                                display: true,
+                                text: "Confidence (%)"
+                            },
+                            ticks: {
+                                stepSize: 20
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: "top"
+                        }
+                    }
+                }
+            });
+        }
+    }
+
+    /* ===============================
+       Sentiment Distribution Donut Chart
+    =============================== */
+    const sentimentCanvas = document.getElementById("sentimentChart");
+
+    if (sentimentCanvas) {
+        new Chart(sentimentCanvas, {
+            type: "doughnut",
+            data: {
+                labels: ["Positive", "Negative", "Neutral"],
+                datasets: [{
+                    data: [
+                        data.counts.Positive,
+                        data.counts.Negative,
+                        data.counts.Neutral
+                    ],
+
+                    /* 🎨 Consistent sentiment colors */
+                    backgroundColor: [
+    "#22c55e",  // Positive (Green)
+    "#ef4444",  // Negative (Red)
+    "#f59e0b"   // Neutral (Amber)
+],
+borderColor: "#020617",
+borderWidth: 3
+
+                }]
+            },
+            options: {
+                responsive: true,
+                cutout: "65%",
+                plugins: {
+                    legend: {
+                        position: "bottom",
+                        labels: {
+                            boxWidth: 14,
+                            padding: 16,
+                            font: {
+                                size: 13,
+                                weight: "500"
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+});
+</script> 
